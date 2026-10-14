@@ -49,6 +49,11 @@ class VideoTracker:
         for t in tracks:
             if not t.is_confirmed():
                 continue
+            # time_since_update > 0 means DeepSORT is only *predicting* this
+            # track's position (no detection matched it this frame). Those
+            # have no real confidence, so don't emit them as detections.
+            if t.time_since_update > 0:
+                continue
             x1, y1, x2, y2 = t.to_ltrb()
             results.append(
                 Track(

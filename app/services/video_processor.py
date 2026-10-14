@@ -74,18 +74,28 @@ def process_video(video_id: int):
             detections = detect_objects(frame)
             tracks = tracker.update(frame, detections)
 
+            used_this_frame: set[int] = set()  # one entity per track per frame
+
             for track in tracks:
                 x1, y1, x2, y2 = [int(v) for v in track.bbox]
                 x1, y1 = max(x1, 0), max(y1, 0)
                 crop = frame[y1:y2, x1:x2]
 
                 entity_id = None
-                if track.class_label == "person" and crop.size > 0:
+                if track.class_label == "person" and crop.size > 0 \
+                        and track.track_id in track_entity:
+                    # Same DeepSORT track seen before in this video: keep its
+                    # entity instead of re-running ReID on every frame.
+                    entity_id = track_entity[track.track_id]
+                elif track.class_label == "person" and crop.size > 0:
                     embedding = get_embedding(crop)
-                    matched_id, _ = match_or_create_entity(embedding, known_embeddings)
+                    matched_id, _ = match_or_create_entity(
+                        embedding, known_embeddings, exclude=used_this_frame
+                    )
 
                     if matched_id is not None:
                         entity_id = matched_id
+                        track_entity[track.track_id] = entity_id
                     else:
                         new_entity = Entity(
                             entity_type=EntityType.person,
@@ -97,6 +107,7 @@ def process_video(video_id: int):
                         db.flush()  # get the new entity's id without committing
                         entity_id = new_entity.id
                         known_embeddings.append((entity_id, embedding))
+                        track_entity[track.track_id] = entity_id
                 else:
                     # Vehicles/objects: no cross-camera ReID model wired up
                     # (see reid.py note). Group per DeepSORT track within
@@ -114,6 +125,8 @@ def process_video(video_id: int):
                         db.flush()
                         entity_id = new_entity.id
                         track_entity[track.track_id] = entity_id
+
+                used_this_frame.add(entity_id)
 
                 # Keep the entity's seen-window current on every sighting
                 # (matched persons, reused vehicle tracks, and new entities).

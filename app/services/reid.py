@@ -77,6 +77,7 @@ def cosine_similarity(a, b) -> float:
 def match_or_create_entity(
     new_embedding,
     known_entities: list[tuple[int, "np.ndarray"]],
+    exclude: set[int] | None = None,
 ) -> tuple[int | None, float]:
     """
     Compare a new detection's embedding against all known entity embeddings.
@@ -90,6 +91,8 @@ def match_or_create_entity(
     best_id, best_score = None, -1.0
 
     for entity_id, embedding in known_entities:
+        if exclude and entity_id in exclude:
+            continue  # already assigned to another track in this frame
         score = cosine_similarity(new_embedding, embedding)
         if score > best_score:
             best_id, best_score = entity_id, score
