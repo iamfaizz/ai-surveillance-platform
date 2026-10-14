@@ -52,6 +52,9 @@ def process_video(video_id: int):
         fps = cap.get(cv2.CAP_PROP_FPS) or 25
         tracker = VideoTracker()
         known_embeddings = _load_known_entity_embeddings(db)
+        # Per-video map of DeepSORT track_id -> entity_id, so a vehicle/object
+        # track maps to ONE Entity instead of a new Entity per sampled frame.
+        track_entity: dict[int, int] = {}
 
         frame_number = 0
         while True:
@@ -95,18 +98,30 @@ def process_video(video_id: int):
                         entity_id = new_entity.id
                         known_embeddings.append((entity_id, embedding))
                 else:
-                    # Vehicles: no cross-camera ReID model wired up yet
-                    # (see reid.py note) — grouped per-track only for now.
-                    new_entity = Entity(
-                        entity_type=EntityType.vehicle
-                        if track.class_label in ("car", "truck", "motorcycle", "bus")
-                        else EntityType.object,
-                        first_seen_at=timestamp,
-                        last_seen_at=timestamp,
-                    )
-                    db.add(new_entity)
-                    db.flush()
-                    entity_id = new_entity.id
+                    # Vehicles/objects: no cross-camera ReID model wired up
+                    # (see reid.py note). Group per DeepSORT track within
+                    # this video: one Entity per track_id.
+                    entity_id = track_entity.get(track.track_id)
+                    if entity_id is None:
+                        new_entity = Entity(
+                            entity_type=EntityType.vehicle
+                            if track.class_label in ("car", "truck", "motorcycle", "bus")
+                            else EntityType.object,
+                            first_seen_at=timestamp,
+                            last_seen_at=timestamp,
+                        )
+                        db.add(new_entity)
+                        db.flush()
+                        entity_id = new_entity.id
+                        track_entity[track.track_id] = entity_id
+
+                # Keep the entity's seen-window current on every sighting
+                # (matched persons, reused vehicle tracks, and new entities).
+                entity = db.get(Entity, entity_id)
+                if entity.first_seen_at is None or timestamp < entity.first_seen_at:
+                    entity.first_seen_at = timestamp
+                if entity.last_seen_at is None or timestamp > entity.last_seen_at:
+                    entity.last_seen_at = timestamp
 
                 db.add(Detection(
                     video_id=video.id,

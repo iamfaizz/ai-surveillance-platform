@@ -17,8 +17,11 @@ for the specific scaling changes that would be needed for the full 500-video
 target (distributed frame processing, GPU inference workers, object storage
 instead of local disk).
 
-Cross-camera re-identification is implemented for **people** using a
-pretrained ReID embedding model. Vehicle re-identification is *not*
+Cross-camera re-identification is implemented for **people** using an OSNet
+backbone with ImageNet-pretrained weights (fine-tuning on Market-1501 is the
+next step, so matching quality is limited). The cross-camera test so far
+reused a single clip registered under two cameras, so it demonstrates the
+linking mechanism rather than real-world accuracy. Vehicle re-identification is *not*
 implemented — vehicles are tracked within a single camera's video but not
 matched across cameras — because that needs a vehicle-specific ReID model
 trained on a different dataset, and that felt more honest to flag as a

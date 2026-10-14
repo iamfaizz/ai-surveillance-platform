@@ -11,13 +11,15 @@ person/vehicle LOOKS like, independent of which camera or frame it came
 from. Two crops of the same person should produce similar vectors; two
 different people should not.
 
-We use a pretrained ReID model (torchreid's OSNet, trained on person-ReID
-benchmarks) to generate these embeddings, then compare new detections
+We use torchreid's OSNet backbone (ImageNet-pretrained weights, NOT weights
+trained on a person-ReID benchmark; fine-tuning on Market-1501 is the next
+step) to generate these embeddings, then compare new detections
 against known Entity embeddings using cosine similarity. If the best match
 exceeds a threshold, we assign the detection to that existing Entity.
 Otherwise, we create a new Entity.
 
-Note: torchreid ships pretrained person-ReID models. Vehicle ReID would
+Note: because the weights are ImageNet-pretrained, matching quality is
+limited versus a ReID-trained checkpoint. Vehicle ReID would
 need a separate vehicle-specific model (e.g. trained on VeRi-776) — noted
 as a scope limitation in architecture.md; this implementation focuses on
 person re-identification, with vehicles falling back to track-level

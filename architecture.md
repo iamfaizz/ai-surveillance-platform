@@ -28,7 +28,7 @@ scratch isn't realistic or the right use of time. The genuinely hard,
 differentiated engineering problem here is building the **system** that
 correctly wires detection → tracking → re-identification → storage →
 queryable API together, at the intended scale. Reusing well-established
-pretrained models (YOLOv8 on COCO, OSNet for person ReID) for the model
+pretrained models (YOLOv8 on COCO; OSNet backbone with ImageNet-pretrained weights for person ReID, fine-tuning on Market-1501 being the next step) for the model
 components lets the actual system architecture be the focus, which is also
 what the evaluation criteria emphasize (scalability, code quality,
 deployment readiness) over raw model accuracy.
@@ -111,3 +111,9 @@ None of these are hidden — the point of listing them is that the
 *architecture* (schema, service boundaries, async processing model) is
 designed to accommodate these upgrades without a rewrite, even though this
 implementation doesn't include all of them.
+
+## Validation caveat
+
+The cross-camera ReID check so far used a single clip registered under two
+different cameras. It confirms the entity-linking mechanism works end to end,
+but not matching accuracy on genuinely different footage.
